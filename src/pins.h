@@ -27,6 +27,6 @@
 #define MPL311_INT_2 4
 #define MPL311_ADDR 0x60
 
-#define MEM_WROTE_PROTECT 2
+#define MEM_WRITE_PROTECT 2
 #define MEM_CS 1
 #define MEM_HOLD 0
