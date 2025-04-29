@@ -1,7 +1,11 @@
 #include <Arduino.h>
 #include <test_util.h>
+#include "pins.h"
+#include <Wire.h>
+#include <MPL3115A2.h>
+#include <__flash2_driver.h>
 
-
+MPL3115A2 baro;
 
 void setup() {
   #ifdef TEST_ENV
@@ -11,6 +15,15 @@ void setup() {
   #endif
   
   // Run main setup
+  Serial.println("1");
+  Wire.begin();
+  Serial.println("2");
+  
+  // baro.begin(Wire, MPL311_ADDR);
+
+  flash2_init();
+
+  Serial.println("INITTED");
 }
 
 void loop() {
@@ -20,5 +33,9 @@ void loop() {
     return;
   #endif
 
+  float alt = baro.readAltitude();
+  float pres = baro.readPressure();
+  float temp = baro.readTempF();
 
+  Serial.printf("Alt: %f, Pres: %f, Temp: %f", alt, pres, temp);
 }
