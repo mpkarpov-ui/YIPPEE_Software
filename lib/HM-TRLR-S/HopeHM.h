@@ -22,4 +22,4 @@ class HopeHM {
 
     uint8_t errno_;
     HardwareSerial* serial_;
-}
+};
