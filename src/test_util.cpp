@@ -232,6 +232,28 @@ void YIPPEE_TEST_SETUP() {
         flash.write(0x000000, (const uint8_t*)message, strlen(message));
 
         uint8_t buffer[20];
+
+        buffer[0] = 'p';
+        buffer[1] = 'p';
+        buffer[2] = 'p';
+        buffer[3] = 'p';
+        buffer[4] = 'p';
+        buffer[5] = 'p';
+        buffer[6] = 'p';
+        buffer[7] = 'p';
+        buffer[8] = 'p';
+        buffer[9] = 'p';
+        buffer[10] = 'p';
+        buffer[11] = 'p';
+        buffer[12] = 'p';
+        buffer[13] = 'p';
+        buffer[14] = 'p';
+        buffer[15] = 'p';
+        buffer[16] = 'p';
+        buffer[17] = 'p';
+        buffer[18] = 'p';
+        buffer[19] = 'p';
+
         flash.read(0x000000, buffer, strlen(message));
         buffer[strlen(message)] = '\0';
 
