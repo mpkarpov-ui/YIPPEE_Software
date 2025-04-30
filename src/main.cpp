@@ -3,6 +3,7 @@
   #include <test_util.h>
 #endif
 #include "pins.h"
+#include "buzzer.h"
 #include <Wire.h>
 #include <MPL3115A2.h>
 #include <SparkFun_u-blox_GNSS_v3.h>
@@ -17,14 +18,28 @@ SFE_UBLOX_GNSS_SERIAL gps;
 SPIFlash mem(MEM_CS);
 
 struct board_data_t {
+  bool init_no_err = true;
+
   // GPS
-  bool gps_fix_ok;
-  uint8_t gps_fix_type;
-  uint8_t gps_siv;
+  bool gps_fix_ok = false;
+  uint8_t gps_fix_type = 0;
+  uint8_t gps_siv = 0;
+  int32_t gps_latitude = 0;
+  int32_t gps_longitude = 0;
+  int32_t gps_altitude = 0;
+
+};
+
+struct telem_t {
+  // status flags
+  // INIT_NOERR | GPS_OK | ??? 
+  uint8_t status;
+
+  // GPS
   int32_t gps_latitude;
   int32_t gps_longitude;
   int32_t gps_altitude;
-
+  int8_t gps_siv_fix_type; // 5 bits SIV, 3 bits fix type
 };
 
 board_data_t global_data;
@@ -50,8 +65,7 @@ void setup() {
 
   // Show signs of life!
   digitalWrite(LED_BLUE, HIGH);
-  tone(BUZZER, 2500, 60);
-  delay(100);
+  BUZZ_INIT();
   digitalWrite(LED_BLUE, LOW);
 
 
@@ -66,19 +80,15 @@ void setup() {
   // Try to init GPS 
   bool gps_has_init = gps.begin(Serial5);
   
-  gps.setDynamicModel(DYN_MODEL_AIRBORNE4g);
+  // gps.setDynamicModel(DYN_MODEL_AIRBORNE4g);
 
+  if(!gps_has_init) { global_data.init_no_err = false; }
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
     if(!gps_has_init) {
       Serial.println("Failed to init GPS!");
       digitalWrite(LED_GREEN, HIGH); // Flashing green LED = GPS fail
-      tone(BUZZER, 3000, 100);
-      delay(200);
-      tone(BUZZER, 3000, 100);
-      delay(200);
-      tone(BUZZER, 3000, 100);
-      delay(200);
+      BUZZ_FAIL_GPS();
 
       while(1) {
         digitalWrite(LED_GREEN, HIGH);
@@ -93,15 +103,13 @@ void setup() {
   digitalWrite(MEM_HOLD, HIGH);
   digitalWrite(MEM_WRITE_PROTECT, HIGH);
   bool flash_init_stat = mem.begin();
+  if(!flash_init_stat) { global_data.init_no_err = false; }
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
-    if(!flash_init_stat) {
+    if(flash_init_stat) {
       Serial.println("Failed to init Flash!");
       digitalWrite(LED_BLUE, HIGH); // Flashing blue is flash failure
-      tone(BUZZER, 3000, 100);
-      delay(200);
-      tone(BUZZER, 3000, 100);
-      delay(200);
+      BUZZ_FAIL_MEM();
 
       while(1) {
         digitalWrite(LED_BLUE, HIGH);
@@ -119,20 +127,21 @@ void setup() {
   
 
   // Show setup finished! (And play YIPPEE tone!)
-  // tone(BUZZER, 5200, 130);
-  // delay(120);
-  tone(BUZZER, 2600, 100);
-  delay(100);
+  BUZZ_YIPPEE();
 }
 
 void get_gps_data() {
-  global_data.gps_fix_ok = gps.getGnssFixOk();
-  global_data.gps_siv = gps.getSIV(400);
+  global_data.gps_fix_ok = gps.getGnssFixOk(200);
+  global_data.gps_siv = gps.getSIV(200);
+
+  if(global_data.gps_siv > 100) {
+    global_data.gps_siv = 0;
+  }
   if(global_data.gps_fix_ok) {
-    global_data.gps_fix_type = gps.getFixType();
-    global_data.gps_latitude = gps.getLatitude();
-    global_data.gps_longitude = gps.getLongitude();
-    global_data.gps_altitude = gps.getAltitude();
+    global_data.gps_fix_type = gps.getFixType(200);
+    global_data.gps_latitude = gps.getLatitude(200);
+    global_data.gps_longitude = gps.getLongitude(200);
+    global_data.gps_altitude = gps.getAltitude(200);
   }
 }
 
@@ -170,27 +179,37 @@ void loop() {
     if(LAST_GPS_OK_STATE == false) {
       LAST_GPS_OK_STATE = true;
       // Lil beeps to tell us gps is ok!
-      tone(BUZZER, 4000, 80);
-      delay(100);
-      tone(BUZZER, 3000, 80);
-      delay(80);
+      BUZZ_GPS_LOCK_ACQUIRED();
       GPS_LIGHT_STATE = true;
       digitalWrite(LED_GREEN, HIGH);
-    } else {
-      LAST_GPS_OK_STATE = false;
-      GPS_LIGHT_STATE = false;
-      digitalWrite(LED_GREEN, LOW);
     }
 
   } else {
+    if(LAST_GPS_OK_STATE == true) {
+      // We lost lock :(
+      LAST_GPS_OK_STATE = false;
+      GPS_LIGHT_STATE = false;
+      digitalWrite(LED_GREEN, LOW);
+
+      BUZZ_GPS_LOCK_LOST();
+      
+    }
     if(millis() > NEXT_GPS_FLASH) {
-      NEXT_GPS_FLASH = millis() + 500;
-      GPS_LIGHT_STATE = !GPS_LIGHT_STATE;
-      digitalWrite(LED_GREEN, GPS_LIGHT_STATE ? HIGH : LOW);
+      if(global_data.gps_siv > 0) {
+        Serial.println("Satellites are in view.. attempting to acquire lock");
+        NEXT_GPS_FLASH = millis() + 350;
+        GPS_LIGHT_STATE = !GPS_LIGHT_STATE;
+        digitalWrite(LED_GREEN, GPS_LIGHT_STATE ? HIGH : LOW);
+        BUZZ_GPS_SAT_IN_VIEW();
+      } else {
+        NEXT_GPS_FLASH = millis() + 750;
+        GPS_LIGHT_STATE = !GPS_LIGHT_STATE;
+        digitalWrite(LED_GREEN, GPS_LIGHT_STATE ? HIGH : LOW);
+      }
     }
   }
 
-  DEBUG_print_gps_data();
+  
 
   delay(10);
 }
