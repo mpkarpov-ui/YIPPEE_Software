@@ -6,7 +6,7 @@
 #include <Wire.h>
 #include <MPL3115A2.h>
 #include <SparkFun_u-blox_GNSS_v3.h>
-#include <SPIMemory.h>
+#include <SST26VF040A.h>
 
 // Check the config below to allow for booting with failures
 // #define ALLOW_SETUP_FAILURES
@@ -14,7 +14,7 @@
 
 MPL3115A2 baro;
 SFE_UBLOX_GNSS_SERIAL gps;
-SPIFlash mem(MEM_CS);
+SST26VF040A mem(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
 
 struct board_data_t {
   // GPS
@@ -92,6 +92,7 @@ void setup() {
   // Flash init
   digitalWrite(MEM_HOLD, HIGH);
   digitalWrite(MEM_WRITE_PROTECT, HIGH);
+
   bool flash_init_stat = mem.begin();
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
