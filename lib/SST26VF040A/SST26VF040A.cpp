@@ -52,7 +52,7 @@ bool SST26VF040A::begin() {
     digitalWrite(cs_pin, HIGH);
     delay(1);
     reset();
-    
+
     uint8_t status = readStatus();
     if (status & 0x1C) {
         writeStatus(status & ~0x1C);
@@ -88,10 +88,6 @@ void SST26VF040A::read(uint32_t address, uint8_t* buffer, uint32_t length) {
 
 // only allows writing to one page at a time, could be updated to do more
 void SST26VF040A::write(uint32_t address, const uint8_t* data, uint32_t length) {
-    if (length > PAGE_SIZE) {
-        return;
-    }
-
     writeEnable();
 
     digitalWrite(cs_pin, LOW);

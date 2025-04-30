@@ -15,6 +15,16 @@
     SST26VF040A flash(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
 #endif
 
+#ifdef TEST_MEM_2
+    #include "SST26VF040A.h"
+    SST26VF040A flash(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
+#endif
+
+#ifdef TEST_LOGGER
+    #include "logger.h"
+    Logger logger(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
+#endif
+
 #ifdef TEST_LORA
     #include <HopeHM.h>
     HopeHM lora(LORA_RESET, LORA_SLEEP, LORA_CONFIG);
@@ -255,14 +265,19 @@ void YIPPEE_TEST_SETUP() {
             Serial.println("Flash initialization failed!");
         }
 
-        const char* message = "Hello World!";
+        const char* message = "12341234";
+
         flash.eraseSector(0x000000);
-        flash.write(0x000000, (const uint8_t*)message, strlen(message));
 
-        uint8_t buffer[20];
+        flash.write(0x000000,(uint8_t *) message, strlen(message));
 
-        flash.read(0x000000, buffer, strlen(message));
-        buffer[strlen(message)] = '\0';
+        flash.write(0x000000 + strlen(message),(uint8_t *) message, strlen(message));
+
+        uint8_t buffer[80];
+
+        flash.read(0x000000, buffer, 2 * strlen(message));
+
+        buffer[79] = '\0';
 
         Serial.print("Read back: ");
 
@@ -270,6 +285,46 @@ void YIPPEE_TEST_SETUP() {
         
 
 
+    #endif
+
+    #ifdef TEST_MEM_2
+        SPI.begin();
+        pinMode(MEM_CS, OUTPUT);
+        pinMode(MEM_HOLD, OUTPUT);
+        pinMode(MEM_WRITE_PROTECT, OUTPUT);
+        digitalWrite(MEM_CS, HIGH);
+        digitalWrite(MEM_HOLD, HIGH);
+        digitalWrite(MEM_WRITE_PROTECT, HIGH);
+    
+        delay(100);
+        if (flash.begin()) {
+            Serial.println("Flash initialized successfully!");
+        } else {
+            Serial.println("Flash initialization failed!");
+        }
+
+        const char* message = "Hello Worasdasd!";
+        uint8_t buffer[20];
+        float v2;
+
+        flash.read(0x000000, (uint8_t *) (&v2), sizeof(v2));
+        buffer[strlen(message)] = '\0';
+
+        Serial.print("Read back: ");
+
+        Serial.printf("%f \n", v2);
+    #endif
+
+    #ifdef TEST_LOGGER
+        SPI.begin();
+        pinMode(MEM_CS, OUTPUT);
+        pinMode(MEM_HOLD, OUTPUT);
+        pinMode(MEM_WRITE_PROTECT, OUTPUT);
+        digitalWrite(MEM_CS, HIGH);
+        digitalWrite(MEM_HOLD, HIGH);
+        digitalWrite(MEM_WRITE_PROTECT, HIGH);
+
+        logger.begin();
     #endif
 
 
