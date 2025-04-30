@@ -258,7 +258,8 @@ void YIPPEE_TEST_SETUP() {
         buffer[strlen(message)] = '\0';
 
         Serial.print("Read back: ");
-        Serial.println((char*)buffer);
+
+        Serial.println((char*) buffer);
         
 
 

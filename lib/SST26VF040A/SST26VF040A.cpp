@@ -52,6 +52,11 @@ bool SST26VF040A::begin() {
     digitalWrite(cs_pin, HIGH);
     delay(1);
     reset();
+    
+    uint8_t status = readStatus();
+    if (status & 0x1C) {
+        writeStatus(status & ~0x1C);
+    }
 
     digitalWrite(cs_pin, LOW);
     SPI.transfer(CMD_READ_ID);
@@ -128,7 +133,11 @@ void SST26VF040A::chipErase() {
 
 void SST26VF040A::writeEnable() {
     digitalWrite(cs_pin, LOW);
+    delay(10);
+
     SPI.transfer(CMD_WRITE_ENABLE);
+
+    delay(10);
     digitalWrite(cs_pin, HIGH);
 }
 
@@ -157,4 +166,21 @@ void SST26VF040A::reset() {
     digitalWrite(cs_pin, HIGH);
 
     delay(1);
+}
+
+uint8_t SST26VF040A::readStatus() {
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(0x05); 
+    uint8_t status = SPI.transfer(0x00);
+    digitalWrite(cs_pin, HIGH);
+    return status;
+}
+
+void SST26VF040A::writeStatus(uint8_t value) {
+    writeEnable();
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(0x01); 
+    SPI.transfer(value);
+    digitalWrite(cs_pin, HIGH);
+    waitUntilReady();
 }

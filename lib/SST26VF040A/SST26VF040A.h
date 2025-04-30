@@ -42,6 +42,9 @@ public:
 
     void eraseSector(uint32_t address);
     void chipErase();
+    
+    uint8_t readStatus();
+    void writeStatus(uint8_t value);
 
 private:
     uint8_t cs_pin, hold_pin, wp_pin;
