@@ -17,7 +17,7 @@
 
 #ifdef TEST_LORA
     #include <HopeHM.h>
-    HopeHM lora;
+    HopeHM lora(LORA_RESET, LORA_SLEEP, LORA_CONFIG);
 #endif
 
 #ifdef TEST_GPS
@@ -181,9 +181,17 @@ void YIPPEE_TEST_SETUP() {
         pinMode(LORA_SLEEP, OUTPUT);
         pinMode(LORA_CONFIG, OUTPUT);
         Serial.println("OK!");
-
         
+        lora.begin();
+
+        lora.begin_config();
         lora.set_tx_power(HOPEHM_TX_POWER::TX_POWER_20DB);
+        lora.set_channel(HOPEHM_CHANNEL::CHANNEL_0);
+        lora.set_enable_crc(true);
+        lora.set_lora_bandwidth(HOPEHM_BANDWIDTH::BW_125KHZ);
+        lora.set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR::SF_7);
+        lora.set_lora_codingrate4(HOPEHM_CODINGRATE4::CR_4_5);
+        lora.end_config();
 
 
     #endif    

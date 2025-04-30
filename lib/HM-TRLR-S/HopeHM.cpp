@@ -1,23 +1,19 @@
 #include "HopeHM.h"
 
 
-HopeHM::HopeHM() {
-    errno_ = 0;
-}
-
 
 bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
-    Serial.print("AT+");
-    Serial.print(cmdtype);
-    Serial.print("=");
+    serial_->print("AT+");
+    serial_->print(cmdtype);
+    serial_->print("=");
     for (int i = 0; i < n_params; i++) {
-        Serial.print(param_list[i]);
+        serial_->print(param_list[i]);
         if (i != n_params - 1) {
-            Serial.print(",");
+            serial_->print(",");
         }
     }
-    Serial.print("<CR>\r\n");
-    Serial.flush();
+    serial_->print("<CR>\r\n");
+    serial_->flush();
 
     // Read the response from the module
     // Successfuly command reply: OK<CR>
@@ -25,8 +21,8 @@ bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
     char response[100];
 
     int index = 0;
-    while (Serial.available()) {
-        char c = Serial.read();
+    while (serial_->available()) {
+        char c = serial_->read();
         if (c == '\r' || c == '\n') {
             break;
         }
@@ -43,7 +39,7 @@ bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
     }
 
     // If the response is neither "OK" nor "ERROR", treat it as an error
-    errno_ = 3; // Unknown error
+    errno_ = HOPEHM_STAT::ERR_UNKNOWN; // Unknown error
     return false; // Command failed
 }
 
@@ -56,9 +52,52 @@ bool HopeHM::write_command(char* cmdtype, char* param) {
 }
 
 bool HopeHM::set_tx_power(HOPEHM_TX_POWER pwr) {
-    char* param = new char[2];
-    sprintf(param, "%d", pwr);
-    bool res = write_command("POWER", param);
-    delete param;
-    return res;
+    return helper_write_char("POWER", pwr);
+}
+
+bool HopeHM::set_channel(HOPEHM_CHANNEL channel) {
+    return helper_write_char("CS", channel);
+}
+
+bool HopeHM::set_enable_crc(bool enable) {
+    return helper_write_char("CRC", enable ? '1' : '0');
+}
+
+bool HopeHM::set_lora_bandwidth(HOPEHM_BANDWIDTH bw) {
+    return helper_write_char("LRSBW", bw);
+}
+
+bool HopeHM::set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR sf) {
+    return helper_write_char("LRSF", sf);
+}
+
+bool HopeHM::set_lora_codingrate4(HOPEHM_CODINGRATE4 cr) {
+    return helper_write_char("LRCR", cr);
+}
+
+void HopeHM::begin_config() {
+    digitalWrite(config_pin_, LOW);
+    delay(10);
+}
+
+void HopeHM::end_config() {
+    digitalWrite(config_pin_, HIGH);
+    delay(10);
+}
+
+bool HopeHM::transmit(uint8_t* data, uint8_t len) {
+    if (len > 255) {
+        errno_ = HOPEHM_STAT::ERR_TX_TOO_LONG; // Data too long
+        return false;
+    }
+
+    if (len == 0) {
+        errno_ = HOPEHM_STAT::ERR_TX_NO_DATA; // No data to send
+        return false;
+    }
+
+    serial_->write(data, len);
+
+    return true;
+
 }
