@@ -58,6 +58,10 @@ void BUZZ_FAIL_LORA() {
     delay(100);
 }
 
+void BUZZ_FAIL_TRANSMIT() {
+    tone(BUZZER, 3000, 50);
+}
+
 void BUZZ_INIT() {
     tone(BUZZER, 2500, 60);
     delay(60);

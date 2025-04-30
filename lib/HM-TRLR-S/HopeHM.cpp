@@ -56,6 +56,7 @@ bool HopeHM::set_tx_power(HOPEHM_TX_POWER pwr) {
 }
 
 bool HopeHM::set_channel(HOPEHM_CHANNEL channel) {
+    channel_ = channel;
     return helper_write_char("CS", channel);
 }
 
@@ -96,8 +97,17 @@ bool HopeHM::transmit(uint8_t* data, uint8_t len) {
         return false;
     }
 
-    serial_->write(data, len);
+    end_config(); // End config mode before transmission
 
+    size_t written = serial_->write(data, len);
+
+    if (written != len) {
+        errno_ = HOPEHM_STAT::ERR_TX_WRITE_FAIL; // Write failed
+        return false;
+    }
+
+    // Serial.println();
+    serial_->flush(); // Wait for transmission to complete
     return true;
 
 }

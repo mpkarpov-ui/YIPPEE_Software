@@ -8,12 +8,19 @@
 #include "SPI.h"
 
 struct LoggerStruct {
-    float altitude;
+    float gps_altitude;
+    float baro_altitude;
     float temp;
     float pres;
+    uint32_t timestamp;
     uint32_t lat;
     uint32_t lon;
-    uint32_t num_sats;
+
+    // Store all other data in a single uint32_t.
+    uint32_t aux_data;
+    // FSM_STATE  SIV    FIX_TYPE  FLIGHT_NO  CHANNEL <UNUSED>
+    // 00         00000  000       0          0000     0 0000 0000 0000 0000
+    // 01         23456  789       A          BCDE     F 0123 4567 89AB CDEF
 
 };
 

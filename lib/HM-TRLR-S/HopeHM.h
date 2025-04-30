@@ -8,6 +8,7 @@ enum HOPEHM_STAT {
     ERR_UNKNOWN = 3,
     ERR_TX_TOO_LONG = 4,
     ERR_TX_NO_DATA = 5,
+    ERR_TX_WRITE_FAIL = 6,
     OK = 99
 };
 
@@ -73,6 +74,7 @@ class HopeHM {
         config_pin_ = config_pin;
     };
     uint8_t get_err() { return errno_; };
+    bool has_init_succeeded() { return is_ok_; };
 
     void begin_config();
     void end_config();
@@ -83,6 +85,10 @@ class HopeHM {
     bool set_lora_bandwidth(HOPEHM_BANDWIDTH bw);
     bool set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR sf);
     bool set_lora_codingrate4(HOPEHM_CODINGRATE4 cr);
+
+    char get_channel() {
+        return channel_;
+    }
 
     // Sending and recieving commands
     bool transmit(uint8_t* data, uint8_t len);
@@ -102,6 +108,7 @@ class HopeHM {
         init_res &= write_command("BAND", "0");
 
         end_config();
+        is_ok_ = init_res;
         return init_res;
     }
 
@@ -137,4 +144,6 @@ class HopeHM {
     uint8_t reset_pin_;
     uint8_t sleep_pin_;
     uint8_t config_pin_;
+    char channel_ = '0';
+    bool is_ok_ = false;
 };
