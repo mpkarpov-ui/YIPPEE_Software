@@ -10,8 +10,8 @@
 #endif
 
 #ifdef TEST_MEM
-    #include <SpiMemory.h>
-    SPIFlash flash(MEM_CS);
+    #include "SST26VF040A.h"
+    SST26VF040A flash(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
 
     
 #endif
@@ -205,22 +205,39 @@ void YIPPEE_TEST_SETUP() {
     
         delay(100);
     
-        // Send JEDEC ID Read command (0x9F)
-        digitalWrite(MEM_CS, LOW);
-        SPI.transfer(0x9F);  // Command
-        uint8_t manufacturer = SPI.transfer(0x00);
-        uint8_t memoryType   = SPI.transfer(0x00);
-        uint8_t capacity     = SPI.transfer(0x00);
-        digitalWrite(MEM_CS, HIGH);
+        // // Send JEDEC ID Read command (0x9F)
+        // digitalWrite(MEM_CS, LOW);
+        // SPI.transfer(0x9F);  // Command
+        // uint8_t manufacturer = SPI.transfer(0x00);
+        // uint8_t memoryType   = SPI.transfer(0x00);
+        // uint8_t capacity     = SPI.transfer(0x00);
+        // digitalWrite(MEM_CS, HIGH);
     
-        Serial.println("Test flash communication..");
-        Serial.print("Manufacturer ID: 0x");
-        Serial.println(manufacturer, HEX);
-        Serial.print("Device Type: 0x");
-        Serial.println(memoryType, HEX);
-        Serial.print("Device ID: 0x");
-        Serial.println(capacity, HEX);
-                
+        // Serial.println("Test flash communication..");
+        // Serial.print("Manufacturer ID: 0x");
+        // Serial.println(manufacturer, HEX);
+        // Serial.print("Device Type: 0x");
+        // Serial.println(memoryType, HEX);
+        // Serial.print("Device ID: 0x");
+        // Serial.println(capacity, HEX);
+
+        if (flash.begin()) {
+            Serial.println("Flash initialized successfully!");
+        } else {
+            Serial.println("Flash initialization failed!");
+        }
+
+        const char* message = "Hello World!";
+        flash.eraseSector(0x000000);
+        flash.write(0x000000, (const uint8_t*)message, strlen(message));
+
+        uint8_t buffer[20];
+        flash.read(0x000000, buffer, strlen(message));
+        buffer[strlen(message)] = '\0';
+
+        Serial.print("Read back: ");
+        Serial.println((char*)buffer);
+        
 
 
     #endif
