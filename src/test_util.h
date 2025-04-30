@@ -6,7 +6,8 @@
 // #define TEST_BAROMETER
 // #define TEST_GPS
 // #define TEST_LED
-#define TEST_MEM
+// #define TEST_MEM
+#define TEST_LORA
 #define DISABLE_LOOP
 
 // Define functions

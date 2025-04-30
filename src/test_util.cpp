@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <test_util.h>
 #include <Wire.h>
 #include <pins.h>
@@ -12,8 +13,11 @@
 #ifdef TEST_MEM
     #include "SST26VF040A.h"
     SST26VF040A flash(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
+#endif
 
-    
+#ifdef TEST_LORA
+    #include <HopeHM.h>
+    HopeHM lora;
 #endif
 
 #ifdef TEST_GPS
@@ -167,6 +171,22 @@ void YIPPEE_TEST_SETUP() {
         Serial.println("OK!");
 
     #endif
+
+    #ifdef TEST_LORA
+        Serial.println("[TEST_LORA] Initializes and test LORA.");
+        Serial.print("[TEST_LORA] Setting all pin modes ... ");
+        Serial4.begin(9600);
+
+        pinMode(LORA_RESET, OUTPUT);
+        pinMode(LORA_SLEEP, OUTPUT);
+        pinMode(LORA_CONFIG, OUTPUT);
+        Serial.println("OK!");
+
+        
+        lora.set_tx_power(HOPEHM_TX_POWER::TX_POWER_20DB);
+
+
+    #endif    
 
 
     #ifdef TEST_MEM
