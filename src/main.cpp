@@ -4,6 +4,8 @@
 #endif
 #include "pins.h"
 #include "buzzer.h"
+#include "logger.h"
+#include "HopeHM.h"
 #include <Wire.h>
 #include <MPL3115A2.h>
 #include <SparkFun_u-blox_GNSS_v3.h>
@@ -15,7 +17,8 @@
 
 MPL3115A2 baro;
 SFE_UBLOX_GNSS_SERIAL gps;
-SST26VF040A mem(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
+Logger mem(MEM_CS, MEM_HOLD, MEM_WRITE_PROTECT);
+HopeHM lora(LORA_RESET, LORA_SLEEP, LORA_CONFIG);
 
 struct board_data_t {
   bool init_no_err = true;
@@ -107,7 +110,7 @@ void setup() {
   if(!flash_init_stat) { global_data.init_no_err = false; }
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
-    if(flash_init_stat) {
+    if(!flash_init_stat) {
       Serial.println("Failed to init Flash!");
       digitalWrite(LED_BLUE, HIGH); // Flashing blue is flash failure
       BUZZ_FAIL_MEM();
@@ -125,7 +128,24 @@ void setup() {
   baro.begin(Wire);
 
   // Lora init
-  
+  bool lora_init_stat = lora.begin(&Serial4);
+  #ifndef ALLOW_SETUP_FAILURES
+    // Fail loudly.
+    if(lora_init_stat) {
+      Serial.println("Failed to init LoRa!");
+      digitalWrite(LED_BLUE, HIGH); // Both LEDs flashing is lora failure
+      BUZZ_FAIL_LORA();
+
+      while(1) {
+        digitalWrite(LED_BLUE, HIGH);
+        digitalWrite(LED_GREEN, LOW);
+        delay(50);
+        digitalWrite(LED_BLUE, LOW);
+        digitalWrite(LED_GREEN, HIGH);
+        delay(50);
+      };
+    }
+  #endif
 
   // Show setup finished! (And play YIPPEE tone!)
   BUZZ_YIPPEE();

@@ -53,6 +53,11 @@ void BUZZ_FAIL_MEM() {
     delay(200);
 }
 
+void BUZZ_FAIL_LORA() {
+    tone(BUZZER, 3000, 100);
+    delay(100);
+}
+
 void BUZZ_INIT() {
     tone(BUZZER, 2500, 60);
     delay(60);

@@ -85,7 +85,7 @@ class HopeHM {
     bool set_lora_codingrate4(HOPEHM_CODINGRATE4 cr);
 
     // Sending and recieving commands
-    bool transmit();
+    bool transmit(uint8_t* data, uint8_t len);
 
     bool begin(HardwareSerial* serial) {
         serial_ = serial;
