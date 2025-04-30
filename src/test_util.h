@@ -7,7 +7,9 @@
 // #define TEST_GPS
 // #define TEST_LED
 // #define TEST_MEM
-#define TEST_LORA
+// #define TEST_MEM_2
+#define TEST_LOGGER
+// #define TEST_LORA
 #define DISABLE_LOOP
 
 // Define functions
