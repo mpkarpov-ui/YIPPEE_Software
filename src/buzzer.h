@@ -37,6 +37,12 @@ void BUZZ_YIPPEE() {
     delay(100);
 }
 
+// Single high pitch buzz to indicate a successful launch detect.
+// Important that it doesn't block
+void BUZZ_YIPPEE_LAUNCH() {
+    tone(BUZZER, 5200, 350);
+}
+
 void BUZZ_FAIL_GPS() {
     tone(BUZZER, 3000, 100);
     delay(200);

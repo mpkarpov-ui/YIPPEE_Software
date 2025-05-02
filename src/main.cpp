@@ -2,6 +2,11 @@
 #ifdef TEST_ENV
   #include <test_util.h>
 #endif
+
+#ifdef MEM_OFFLOAD
+  #include <mem_offload/mem_offload.h>
+#endif
+
 #include "pins.h"
 #include "buzzer.h"
 #include "logger.h"
@@ -13,6 +18,7 @@
 
 // Check the config below to allow for booting with failures
 // #define ALLOW_SETUP_FAILURES
+// #define ENABLE_PROFILING
 
 // 500ms / 2hz
 #define LOG_FREQUENCY 500
@@ -131,6 +137,12 @@ void setup() {
     YIPPEE_TEST_SETUP();
     return;
   #endif
+
+  #ifdef MEM_OFFLOAD
+    // Run memory offload setup
+    YIPPEE_MEM_OFFLOAD_SETUP(&mem);
+    return;
+  #endif
   
   // Set up all pins
   pinMode(BUZZER, OUTPUT);
@@ -162,6 +174,8 @@ void setup() {
   bool gps_has_init = gps.begin(Serial5);
   
   gps.setDynamicModel(DYN_MODEL_AIRBORNE4g);
+  gps.setAutoNAVSAT(true);
+  gps.setAutoPVT(true);
 
   if(!gps_has_init) { global_data.init_no_err = false; }
   #ifndef ALLOW_SETUP_FAILURES
@@ -211,7 +225,7 @@ void setup() {
   bool lora_init_stat = lora.begin(&Serial4);
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
-    if(!lora_init_stat) {
+    if(lora_init_stat) {
       Serial.println("Failed to init LoRa!");
       digitalWrite(LED_BLUE, HIGH); // Both LEDs flashing is lora failure
       BUZZ_FAIL_LORA();
@@ -232,17 +246,17 @@ void setup() {
 }
 
 void get_gps_data() {
-  global_data.gps_fix_ok = gps.getGnssFixOk(200);
-  global_data.gps_siv = gps.getSIV(200);
+  global_data.gps_fix_ok = gps.getGnssFixOk(50);
+  global_data.gps_siv = gps.getSIV(50);
 
   if(global_data.gps_siv > 100) {
     global_data.gps_siv = 0;
   }
   if(global_data.gps_fix_ok) {
-    global_data.gps_fix_type = gps.getFixType(200);
-    global_data.gps_latitude = gps.getLatitude(200);
-    global_data.gps_longitude = gps.getLongitude(200);
-    global_data.gps_altitude = gps.getAltitude(200);
+    global_data.gps_fix_type = gps.getFixType(50);
+    global_data.gps_latitude = gps.getLatitude(50);
+    global_data.gps_longitude = gps.getLongitude(50);
+    global_data.gps_altitude = gps.getAltitude(50);
   }
 }
 
@@ -274,12 +288,30 @@ void loop() {
     YIPPEE_TEST_LOOP();
     return;
   #endif
+
+  #ifdef MEM_OFFLOAD
+    // Run memory offload loop and ignore other code.
+    YIPPEE_MEM_OFFLOAD_LOOP(&mem);
+    return;
+  #endif
+
+  #ifdef ENABLE_PROFILING
+    uint32_t CUR_PROC_TIME = millis();
+  #endif
   
    // We will only attempt getting GPS data every 500ms
   if(millis() > NEXT_GPS_DATA) {
-    NEXT_GPS_DATA = millis() + 500;
+    #ifdef ENABLE_PROFILING
+      Serial.print("[PROFILER] GPS ... ");
+      CUR_PROC_TIME = millis();
+    #endif
+    NEXT_GPS_DATA = millis() + 100;
     get_gps_data();
     // DEBUG_print_gps_data();
+    #ifdef ENABLE_PROFILING
+      CUR_PROC_TIME = millis() - CUR_PROC_TIME;
+      Serial.println("Done! (" + String(CUR_PROC_TIME) + "ms)");
+    #endif
   }
   
   if(global_data.gps_fix_ok) {
@@ -318,26 +350,48 @@ void loop() {
 
   // Transmit telemetry data
   if(millis() > NEXT_TELEM_TRANSMIT && lora.has_init_succeeded()) {
+    #ifdef ENABLE_PROFILING
+      Serial.print("[PROFILER] TELEMETRY ... ");
+      CUR_PROC_TIME = millis();
+    #endif
     if(transmit_telemetry()) {
       TELE_LIGHT_STATE = !TELE_LIGHT_STATE;
       digitalWrite(LED_BLUE, TELE_LIGHT_STATE ? HIGH : LOW);
     } else {
       BUZZ_FAIL_TRANSMIT();
     }
+    #ifdef ENABLE_PROFILING
+      CUR_PROC_TIME = millis() - CUR_PROC_TIME;
+      Serial.println("Done! (" + String(CUR_PROC_TIME) + "ms)");
+    #endif
     NEXT_TELEM_TRANSMIT = millis() + 500;
   }
 
   // Log data to flash memory
   if(millis() > NEXT_LOGGER_COMMIT) {
+    #ifdef ENABLE_PROFILING
+      Serial.print("[PROFILER] LOGGING ... ");
+      CUR_PROC_TIME = millis();
+    #endif
     LoggerStruct packet = make_logger_packet(global_data);
     mem.write(packet);
     NEXT_LOGGER_COMMIT = millis() + LOG_FREQUENCY;
+    #ifdef ENABLE_PROFILING
+      CUR_PROC_TIME = millis() - CUR_PROC_TIME;
+      Serial.println("Done! (" + String(CUR_PROC_TIME) + "ms)");
+    #endif
   }
 
   if(millis() > NEXT_BAROMETER_READ) {
-    global_data.baro_altitude = baro.readAltitude();
-    global_data.baro_temp = baro.readTemp();
-    global_data.baro_pressure = baro.readPressure();
+    #ifdef ENABLE_PROFILING
+      Serial.print("[PROFILER] BARO ... ");
+      CUR_PROC_TIME = millis();
+    #endif
+    // global_data.baro_altitude = baro.readAltitude();
+    global_data.baro_altitude += 1; // Simulate barometer altitude change
+    // global_data.baro_temp = baro.readTemp();
+    // global_data.baro_pressure = baro.readPressure();
+
 
     if(global_data.initial_baro_altitude == 0) {
       global_data.initial_baro_altitude = global_data.baro_altitude;
@@ -353,13 +407,19 @@ void loop() {
   
       if(CONSECUTIVE_BAROMETER_READS >= CONSECUTIVE_LAUNCH_THRESHOLD && global_data.FSM_state == 0) {
         // We have launched! Set FSM state to 1 (Transition)
+        Serial.println("LAUNCH DETECTED!");
         global_data.FSM_state = 1;
         mem.change_state(global_data.FSM_state);
+        BUZZ_YIPPEE_LAUNCH();
       }
     }
     
 
     NEXT_BAROMETER_READ = millis() + 50;
+    #ifdef ENABLE_PROFILING
+      CUR_PROC_TIME = millis() - CUR_PROC_TIME;
+      Serial.println("Done! (" + String(CUR_PROC_TIME) + "ms)");
+    #endif
   }
 
   delay(1);

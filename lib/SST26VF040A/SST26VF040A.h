@@ -41,6 +41,8 @@ public:
     void write(uint32_t address, const uint8_t* data, uint32_t length);
 
     void eraseSector(uint32_t address);
+    void eraseSector32(uint32_t address);
+    void eraseSector64(uint32_t address);
     void chipErase();
     
     uint8_t readStatus();

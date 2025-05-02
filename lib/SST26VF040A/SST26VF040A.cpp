@@ -39,19 +39,27 @@ static constexpr uint8_t CMD_WRITE_ENABLE    = 0x06;
 static constexpr uint8_t CMD_PAGE_PROGRAM    = 0x02;
 static constexpr uint8_t CMD_READ_DATA       = 0x03;
 static constexpr uint8_t CMD_SECTOR_ERASE    = 0x20;
+static constexpr uint8_t CMD_SECTOR_ERASE32  = 0x52;
+static constexpr uint8_t CMD_SECTOR_ERASE64  = 0xD8;
 static constexpr uint8_t CMD_CHIP_ERASE      = 0x60;
 static constexpr uint8_t CMD_RESET_ENABLE    = 0x66;
 static constexpr uint8_t CMD_RESET_MEMORY    = 0x99;
 
 static constexpr uint8_t STATUS_BUSY_MASK    = 0x01;
 
+// #define MEM_DEBUG
+
 SST26VF040A::SST26VF040A(uint8_t cs, uint8_t hold, uint8_t wp)
     : cs_pin(cs), hold_pin(hold), wp_pin(wp) {}
 
 bool SST26VF040A::begin() {
+    
     digitalWrite(cs_pin, HIGH);
     delay(1);
+    
     reset();
+
+    
 
     uint8_t status = readStatus();
     if (status & 0x1C) {
@@ -114,6 +122,66 @@ void SST26VF040A::eraseSector(uint32_t address) {
     SPI.transfer((address >> 16) & 0xFF);
     SPI.transfer((address >> 8) & 0xFF);
     SPI.transfer(address & 0xFF);
+
+    #ifdef MEM_DEBUG
+    Serial.print("Erasing sector4 at address: 0x");
+    Serial.println(address, HEX);
+
+    Serial.print("Memory region affected: 0x");
+    Serial.print(address, HEX);
+    Serial.print(" to 0x");
+    Serial.println(address + 0x1000, HEX);
+    #endif
+    
+
+    digitalWrite(cs_pin, HIGH);
+    waitUntilReady();
+}
+
+void SST26VF040A::eraseSector32(uint32_t address) {
+    writeEnable();
+    digitalWrite(cs_pin, LOW);
+    
+    SPI.transfer(CMD_SECTOR_ERASE32);
+
+    SPI.transfer((address >> 16) & 0xFF);
+    SPI.transfer((address >> 8) & 0xFF);
+    SPI.transfer(address & 0xFF);
+
+    #ifdef MEM_DEBUG
+    Serial.print("Erasing sector32 at address: 0x");
+    Serial.println(address, HEX);
+
+    Serial.print("Memory region affected: 0x");
+    Serial.print(address, HEX);
+    Serial.print(" to 0x");
+    Serial.println(address + 0x8000, HEX);
+    #endif
+
+    digitalWrite(cs_pin, HIGH);
+    waitUntilReady();
+}
+
+void SST26VF040A::eraseSector64(uint32_t address) {
+    writeEnable();
+    digitalWrite(cs_pin, LOW);
+    
+    SPI.transfer(CMD_SECTOR_ERASE64);
+
+    SPI.transfer((address >> 16) & 0xFF);
+    SPI.transfer((address >> 8) & 0xFF);
+    SPI.transfer(address & 0xFF);
+
+    #ifdef MEM_DEBUG
+    Serial.print("Erasing sector64 at address: 0x");
+    Serial.println(address, HEX);
+
+    Serial.print("Memory region affected: 0x");
+    Serial.print(address, HEX);
+    Serial.print(" to 0x");
+    Serial.println(address + 0x10000, HEX);
+    #endif
+
 
     digitalWrite(cs_pin, HIGH);
     waitUntilReady();
