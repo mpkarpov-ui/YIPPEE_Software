@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 
+#define LORA_DEBUG
+
 enum HOPEHM_STAT {
     ERR_INCORRECT_FMT = 0,
     ERR_INCORRECT_PARAM = 1,
@@ -13,13 +15,13 @@ enum HOPEHM_STAT {
 };
 
 enum HOPEHM_TX_POWER {
-    TX_POWER_20DB = 0,
-    TX_POWER_17DB = 1,
-    TX_POWER_15DB = 2,
-    TX_POWER_10DB = 3,
-    TX_POWER_8DB = 4,
-    TX_POWER_5DB = 5,
-    TX_POWER_2DB = 6
+    TX_POWER_20DB = '0',
+    TX_POWER_17DB = '1',
+    TX_POWER_15DB = '2',
+    TX_POWER_10DB = '3',
+    TX_POWER_8DB = '4',
+    TX_POWER_5DB = '5',
+    TX_POWER_2DB = '6'
 };
 
 enum HOPEHM_CHANNEL {
@@ -96,16 +98,36 @@ class HopeHM {
     bool begin(HardwareSerial* serial) {
         serial_ = serial;
         // Set default non-transmission settings
-        digitalWrite(sleep_pin_, LOW);
-        digitalWrite(reset_pin_, HIGH);
-        digitalWrite(config_pin_, HIGH);
+        #ifdef LORA_DEBUG
+        Serial.println("[LORA:DEBUG] Initializing LORA module...");
+        #endif
+        digitalWrite(sleep_pin_, LOW); // Low is normal transmission mode
+        digitalWrite(reset_pin_, HIGH); // Active low
+        digitalWrite(config_pin_, HIGH); // HIGH for communication, low for config.
+
+        #ifdef LORA_DEBUG
+        Serial.println("[LORA:DEBUG] Pins set");
+        #endif
+        
         delay(10);
 
         bool init_res = true;
+        #ifdef LORA_DEBUG
+        Serial.println("[LORA:DEBUG] Initial config...");
+        #endif
         begin_config();
 
         init_res &= write_command("MODE", "0");
         init_res &= write_command("BAND", "0");
+
+        #ifdef LORA_DEBUG
+        if (init_res) {
+            Serial.println("[LORA:DEBUG] Initial config done!");
+        } else {
+            Serial.println("[LORA:DEBUG] Initial config failed!");
+        }
+        #endif
+        
 
         end_config();
         is_ok_ = init_res;

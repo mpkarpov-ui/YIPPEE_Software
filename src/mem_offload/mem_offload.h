@@ -98,6 +98,18 @@ void PRINT_CSV(size_t addr, uint32_t start_time, LoggerStruct* data) {
     
 }
 
+void PRINT_SETTINGS(FlashSettings* settings) {
+    Serial.print("Flight 0 start time: ");
+    Serial.println(settings->flight0_start_time, DEC);
+    Serial.print("Flight 1 start time: ");
+    Serial.println(settings->flight1_start_time, DEC);
+    Serial.print("Telemetry channel: ");
+    Serial.println(settings->telem_channel, DEC);
+    Serial.print("Last written section: ");
+    Serial.println(settings->last_written_section, DEC);
+}
+
+
 void YIPPEE_MEM_OFFLOAD_LOOP(Logger* mem) {
     // Read a string from the serial port and execute a switch depending on the string.
     // This is a blocking function, so it will wait until the string is received.
@@ -162,6 +174,13 @@ void YIPPEE_MEM_OFFLOAD_LOOP(Logger* mem) {
             mem->reset_flight(0);
             Serial.println("<DONE>");
             Serial.println("# Deleted data from flight 0.");
+        } else if (command == "SET") {
+            FlashSettings settings;
+
+            mem->read_settings(&settings);
+            Serial.println("# Current settings: ");
+            PRINT_SETTINGS(&settings);
+            Serial.println("<DONE>");
         } else if (command == "D1") {
             Serial.println("# Deleting data from flight 1.");
             mem->reset_flight(1);

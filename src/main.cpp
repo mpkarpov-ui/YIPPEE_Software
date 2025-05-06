@@ -24,9 +24,13 @@
 #define LOG_FREQUENCY 500
 
 // Threshold above pad that we detect launch
-#define LAUNCH_THRESHOLD_ALT 50 // m
+#define LAUNCH_THRESHOLD_ALT 20 // m
 // Times we must read the launch threshold before we consider it a launch
-#define CONSECUTIVE_LAUNCH_THRESHOLD 3
+#define CONSECUTIVE_LAUNCH_THRESHOLD 5
+
+// At 50ms / 20hz, we need to read below the landing delta threshold for 3 seconds
+#define CONSECUTIVE_LANDING_THRESHOLD 60 
+#define LANDING_DELTA_THRESHOLD 5 // m
 
 MPL3115A2 baro;
 SFE_UBLOX_GNSS_SERIAL gps;
@@ -45,14 +49,14 @@ struct board_data_t {
   int32_t gps_altitude = 0;
 
   // Baro
-  int32_t baro_altitude = 0;
-  int32_t baro_temp = 0;
-  int32_t baro_pressure = 0;
+  float baro_altitude = 0;
+  float baro_temp = 0;
+  float baro_pressure = 0;
 
   int32_t initial_baro_altitude = 0;
 
   // Flight data
-  uint8_t FSM_state = 0; // 0=Preflight, 1= Transition, 2=Flight
+  uint8_t FSM_state = 0; // 0=Preflight, 1=Flight, 2=Landed
   uint8_t flight_number = 0; // 0=F1, 1=F2
 };
 
@@ -68,7 +72,7 @@ struct telem_t {
   int8_t gps_siv_fix_type; // 5 bits SIV, 3 bits fix type
 
   // Barometer
-  int32_t baro_altitude;
+  float baro_altitude;
 };
 
 board_data_t global_data;
@@ -77,7 +81,10 @@ uint32_t NEXT_GPS_DATA;
 uint32_t NEXT_TELEM_TRANSMIT;
 uint32_t NEXT_LOGGER_COMMIT;
 uint32_t NEXT_BAROMETER_READ;
+uint32_t NEXT_LANDING_FLASH;
 uint32_t CONSECUTIVE_BAROMETER_READS = 0;
+uint32_t CONSECUTIVE_LANDING_READS = 0;
+float LANDING_STATE_ALTITUDE = 0;
 bool GPS_LIGHT_STATE = false;
 bool TELE_LIGHT_STATE = false;
 bool LAST_GPS_OK_STATE = false;
@@ -151,6 +158,9 @@ void setup() {
   pinMode(MEM_CS, OUTPUT);
   pinMode(MEM_HOLD, OUTPUT);
   pinMode(MEM_WRITE_PROTECT, OUTPUT);
+  pinMode(LORA_RESET, OUTPUT);
+  pinMode(LORA_SLEEP, OUTPUT);
+  pinMode(LORA_CONFIG, OUTPUT);
 
   // Show signs of life!
   digitalWrite(LED_BLUE, HIGH);
@@ -163,6 +173,7 @@ void setup() {
   Serial4.begin(9600);
   Serial.begin(9600);
   SPI.begin();
+  Wire.begin();
 
   NEXT_GPS_FLASH = millis() + 500;
   NEXT_TELEM_TRANSMIT = millis();
@@ -219,13 +230,27 @@ void setup() {
   #endif
 
   // Baro init
-  baro.begin(Wire);
+  baro.begin(Wire, 0x60);
+  baro.setModeAltimeter();
+  baro.setOversampleRate(5);
+  baro.enableEventFlags();
 
   // Lora init
+  Serial.println("Initing lora..");
   bool lora_init_stat = lora.begin(&Serial4);
+
+  lora.begin_config();
+  lora_init_stat &= lora.set_tx_power(HOPEHM_TX_POWER::TX_POWER_20DB);
+  lora_init_stat &= lora.set_channel(HOPEHM_CHANNEL::CHANNEL_0);
+  lora_init_stat &= lora.set_enable_crc(true);
+  lora_init_stat &= lora.set_lora_bandwidth(HOPEHM_BANDWIDTH::BW_125KHZ);
+  lora_init_stat &= lora.set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR::SF_7);
+  lora_init_stat &= lora.set_lora_codingrate4(HOPEHM_CODINGRATE4::CR_4_5);
+
+  lora.end_config();
   #ifndef ALLOW_SETUP_FAILURES
     // Fail loudly.
-    if(lora_init_stat) {
+    if(!lora_init_stat) {
       Serial.println("Failed to init LoRa!");
       digitalWrite(LED_BLUE, HIGH); // Both LEDs flashing is lora failure
       BUZZ_FAIL_LORA();
@@ -307,7 +332,7 @@ void loop() {
     #endif
     NEXT_GPS_DATA = millis() + 100;
     get_gps_data();
-    // DEBUG_print_gps_data();
+    DEBUG_print_gps_data();
     #ifdef ENABLE_PROFILING
       CUR_PROC_TIME = millis() - CUR_PROC_TIME;
       Serial.println("Done! (" + String(CUR_PROC_TIME) + "ms)");
@@ -387,14 +412,15 @@ void loop() {
       Serial.print("[PROFILER] BARO ... ");
       CUR_PROC_TIME = millis();
     #endif
-    // global_data.baro_altitude = baro.readAltitude();
-    global_data.baro_altitude += 1; // Simulate barometer altitude change
-    // global_data.baro_temp = baro.readTemp();
-    // global_data.baro_pressure = baro.readPressure();
+
+    global_data.baro_altitude = baro.readAltitude();
+    global_data.baro_temp = baro.readTemp();
+    global_data.baro_pressure = baro.readPressure();
 
 
     if(global_data.initial_baro_altitude == 0) {
       global_data.initial_baro_altitude = global_data.baro_altitude;
+
     } else {
       // Check if we are above the launch threshold
       int32_t delta_altitude = global_data.baro_altitude - global_data.initial_baro_altitude;
@@ -412,6 +438,29 @@ void loop() {
         mem.change_state(global_data.FSM_state);
         BUZZ_YIPPEE_LAUNCH();
       }
+
+      if(global_data.FSM_state == 1) {
+        
+        if(abs(global_data.baro_altitude - LANDING_STATE_ALTITUDE) < LANDING_DELTA_THRESHOLD) {
+          CONSECUTIVE_LANDING_READS++;
+        } else {
+          CONSECUTIVE_LANDING_READS = 0;
+          LANDING_STATE_ALTITUDE = global_data.baro_altitude;
+        }
+
+        if(CONSECUTIVE_LANDING_READS >= CONSECUTIVE_LANDING_THRESHOLD) {
+          // We have landed! Set FSM state to 2 (Landed)
+          Serial.println("LANDING DETECTED!");
+          global_data.FSM_state = 2;
+          mem.change_state(global_data.FSM_state);
+        }
+      }
+    }
+
+    if(millis() > NEXT_LANDING_FLASH && global_data.FSM_state == 2) {
+      // Flash the blue LED to indicate we are in flight
+      BUZZ_YIPPEE_LANDING();
+      NEXT_LANDING_FLASH = millis() + 1500;
     }
     
 

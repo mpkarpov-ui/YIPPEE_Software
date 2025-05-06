@@ -124,6 +124,9 @@ void Logger::commit_settings(FlashSettings* data) {
 }
 
 void Logger::write(LoggerStruct data) {
+    if(!allow_write_to_flash) {
+        return;
+    }
     // before launch
     if (state == 0) {
         packet_array[buf_idx % 8] = data;
@@ -151,6 +154,11 @@ void Logger::write(LoggerStruct data) {
 }
 
 void Logger::change_state(int s) {
+    if(s == 2) {
+        allow_write_to_flash = false;
+
+        return;
+    }
     if (s != 1 || state != 0) {
         return;
     }

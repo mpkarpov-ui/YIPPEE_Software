@@ -47,6 +47,9 @@ class Logger {
         bool begin();
 
         bool begin_readonly();
+        int get_state() {
+            return state;
+        }
 
         void write(LoggerStruct data);
         void commit_settings(FlashSettings* data);
@@ -90,4 +93,5 @@ class Logger {
         FlashSettings settings_;
 
         int state;
+        bool allow_write_to_flash = true;
 };

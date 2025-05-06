@@ -47,7 +47,7 @@ static constexpr uint8_t CMD_RESET_MEMORY    = 0x99;
 
 static constexpr uint8_t STATUS_BUSY_MASK    = 0x01;
 
-// #define MEM_DEBUG
+#define MEM_DEBUG
 
 SST26VF040A::SST26VF040A(uint8_t cs, uint8_t hold, uint8_t wp)
     : cs_pin(cs), hold_pin(hold), wp_pin(wp) {}

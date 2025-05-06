@@ -27,7 +27,7 @@
 
 #ifdef TEST_LORA
     #include <HopeHM.h>
-    HopeHM lora(LORA_RESET, LORA_SLEEP, LORA_CONFIG);
+    HopeHM lora_test(LORA_RESET, LORA_SLEEP, LORA_CONFIG);
 #endif
 
 #ifdef TEST_GPS
@@ -135,14 +135,15 @@ void YIPPEE_TEST_SETUP() {
     #ifdef TEST_BAROMETER
         Serial.println("[TEST_BAROMETER] Initializes and reads from barometer.");
         Serial.print("[TEST_BAROMETER] Calling MPL3115A2::begin() ... ");
-        pressure_sensor_test.begin(); Serial.println("OK!");
+        pressure_sensor_test.begin(Wire, 0x60); Serial.println("OK!");
 
         Serial.print("[TEST_BAROMETER] Calling MPL3115A2::setModeAltimeter() ... ");
         pressure_sensor_test.setModeAltimeter(); Serial.println("OK!");
 
         Serial.print("[TEST_BAROMETER] Setting MPL3115A2 settings ... ");
-        pressure_sensor_test.setOversampleRate(7);
+        pressure_sensor_test.setOversampleRate(5);
         pressure_sensor_test.enableEventFlags();
+
         Serial.println("OK!");
     #endif
 
@@ -192,17 +193,31 @@ void YIPPEE_TEST_SETUP() {
         pinMode(LORA_CONFIG, OUTPUT);
         Serial.println("OK!");
         
-        lora.begin();
+        bool ok =lora_test.begin(&Serial4);
 
-        lora.begin_config();
-        lora.set_tx_power(HOPEHM_TX_POWER::TX_POWER_20DB);
-        lora.set_channel(HOPEHM_CHANNEL::CHANNEL_0);
-        lora.set_enable_crc(true);
-        lora.set_lora_bandwidth(HOPEHM_BANDWIDTH::BW_125KHZ);
-        lora.set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR::SF_7);
-        lora.set_lora_codingrate4(HOPEHM_CODINGRATE4::CR_4_5);
-        lora.end_config();
+        if(!ok) {
+            Serial.println("FAIL\nFAILED TO INITIALIZE LORA!");
+            while(1) {};
+        } else {
+            Serial.println("OK!");
+        }
 
+        lora_test.begin_config();
+        ok &= lora_test.set_tx_power(HOPEHM_TX_POWER::TX_POWER_20DB);
+        ok &= lora_test.set_channel(HOPEHM_CHANNEL::CHANNEL_0);
+        ok &= lora_test.set_enable_crc(true);
+        ok &= lora_test.set_lora_bandwidth(HOPEHM_BANDWIDTH::BW_125KHZ);
+        ok &= lora_test.set_lora_spreading_factor(HOPEHM_SPREADINGFACTOR::SF_7);
+        ok &= lora_test.set_lora_codingrate4(HOPEHM_CODINGRATE4::CR_4_5);
+        lora_test.end_config();
+
+
+        if(!ok) {
+            Serial.println("FAIL\nFAILED TO CONFIGURE LORA!");
+            while(1) {};
+        } else {
+            Serial.println("OK!");
+        }
 
     #endif    
 

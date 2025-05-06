@@ -3,6 +3,26 @@
 
 
 bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
+    #ifdef LORA_DEBUG
+    Serial.print("[LORA:DEBUG:write_command] ");
+    
+    Serial.print("AT+");
+    Serial.print(cmdtype);
+    Serial.print("=");
+    for (int i = 0; i < n_params; i++) {
+        Serial.print(param_list[i]);
+        if (i != n_params - 1) {
+            Serial.print(",");
+        }
+    }
+    Serial.println("<CR>");
+    #endif
+
+    while(serial_->available()) {
+        // Flush input buffer before the write
+        serial_->read();
+    }
+
     serial_->print("AT+");
     serial_->print(cmdtype);
     serial_->print("=");
@@ -12,23 +32,36 @@ bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
             serial_->print(",");
         }
     }
-    serial_->print("<CR>\r\n");
+    serial_->print("\r\n");
     serial_->flush();
+
+    delay(20);
+
+    #ifdef LORA_DEBUG
+    Serial.println("[LORA:DEBUG:write_command] Waiting for a response...");
+    #endif
+
 
     // Read the response from the module
     // Successfuly command reply: OK<CR>
     // Command fail reply:ERROR:n<CR>
     char response[100];
-
+    unsigned long start = millis();
     int index = 0;
-    while (serial_->available()) {
+    while (millis() - start < 1000) {
         char c = serial_->read();
         if (c == '\r' || c == '\n') {
             break;
         }
+        
         response[index++] = c;
     }
     response[index] = '\0';
+
+    #ifdef LORA_DEBUG
+    Serial.print("[LORA:DEBUG:write_command] Response: ");
+    Serial.println(response);
+    #endif
 
     // Check if the response contains "OK" or "ERROR"
     if (strstr(response, "OK") != NULL) {
@@ -44,10 +77,21 @@ bool HopeHM::write_command(char* cmdtype, char** param_list, int n_params) {
 }
 
 bool HopeHM::write_command(char* cmdtype, char* param) {
+    #ifdef LORA_DEBUG
+    Serial.print("[LORA:DEBUG] Sending command: ");
+    Serial.print(cmdtype);
+    Serial.print(" with param: '");
+    Serial.print(param);
+    Serial.println("' ...");
+    #endif
     char** param_list = new char*[1];
     param_list[0] = param;
     bool res = write_command(cmdtype, param_list, 1);
-    delete param_list;
+    #ifdef LORA_DEBUG
+    Serial.print("[LORA:DEBUG] Command result: ");
+    Serial.println(res ? "OK" : "ERROR");
+    #endif
+    delete[] param_list;
     return res;
 }
 
@@ -61,7 +105,7 @@ bool HopeHM::set_channel(HOPEHM_CHANNEL channel) {
 }
 
 bool HopeHM::set_enable_crc(bool enable) {
-    return helper_write_char("CRC", enable ? '1' : '0');
+    return helper_write_char("LRCRC", enable ? '1' : '0');
 }
 
 bool HopeHM::set_lora_bandwidth(HOPEHM_BANDWIDTH bw) {
