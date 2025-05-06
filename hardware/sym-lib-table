@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "MCU_Teensy")(type "KiCad")(uri "C:/Users/mpkar/Documents/personal-hw/libs/MCU_Teensy.kicad_sym")(options "")(descr ""))
+  (lib (name "RF_Module_Hope")(type "KiCad")(uri "${KIPRJMOD}/RF_Module_Hope.kicad_sym")(options "")(descr ""))
+)
