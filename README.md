@@ -1,6 +1,6 @@
 # YIPPEE
 
-**Your Integrated Presicion Positioning (and) Elevation Engine
+**Your Integrated Presicion Positioning (and) Elevation Engine**
 
 ### About YIPPEE
 
